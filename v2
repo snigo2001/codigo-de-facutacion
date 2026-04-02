@@ -5,55 +5,84 @@ from reportlab.lib.styles import getSampleStyleSheet
 import os
 from datetime import datetime
 
+class EventBus:
+    def __init__(self):
+        self.suscriptores = {}
 
-BASE_PDF_DIR = r"C:\Users\snigo\OneDrive\Documentos\factura de salud\factura_pdf"
+    def suscribir(self, evento, funcion):
+        if evento not in self.suscriptores:
+            self.suscriptores[evento] = []
+        self.suscriptores[evento].append(funcion)
 
-os.makedirs(BASE_PDF_DIR, exist_ok=True)
+    def publicar(self, evento, datos):
+        if evento in self.suscriptores:
+            for funcion in self.suscriptores[evento]:
+                funcion(datos)
+
+event_bus = EventBus()
 
 
-def generar_pdf(cliente, productos):
-    fecha_actual = datetime.now()
-    factura_id = fecha_actual.strftime("%Y%m%d%H%M%S")
+class GeneradorFactura:
+    def generar(self, cliente, productos):
+        pass
 
-    ruta_fecha = os.path.join(
-        BASE_PDF_DIR,
-        str(fecha_actual.year),
-        str(fecha_actual.month)
-    )
+class GeneradorPDF(GeneradorFactura):
 
-    os.makedirs(ruta_fecha, exist_ok=True)
+    BASE_PDF_DIR = r"C:\Users\snigo\OneDrive\Documentos\factura de salud\factura_pdf"
 
-    archivo = os.path.join(ruta_fecha, f"factura_{factura_id}.pdf")
+    def __init__(self):
+        os.makedirs(self.BASE_PDF_DIR, exist_ok=True)
 
-    doc = SimpleDocTemplate(archivo)
-    estilos = getSampleStyleSheet()
-    contenido = []
+    def generar(self, cliente, productos):
+        fecha_actual = datetime.now()
+        factura_id = fecha_actual.strftime("%Y%m%d%H%M%S")
 
-    contenido.append(Paragraph("FACTURA", estilos['Title']))
-    contenido.append(Spacer(1, 10))
-    contenido.append(Paragraph(f"Cliente: {cliente}", estilos['Normal']))
-    contenido.append(Paragraph(f"Fecha: {fecha_actual}", estilos['Normal']))
-    contenido.append(Spacer(1, 10))
+        ruta_fecha = os.path.join(
+            self.BASE_PDF_DIR,
+            str(fecha_actual.year),
+            str(fecha_actual.month)
+        )
 
-    subtotal = 0
+        os.makedirs(ruta_fecha, exist_ok=True)
 
-    for p in productos:
-        linea = f"{p['nombre']} - {p['cantidad']} x {p['precio']}"
-        contenido.append(Paragraph(linea, estilos['Normal']))
-        subtotal += p['cantidad'] * p['precio']
+        archivo = os.path.join(ruta_fecha, f"factura_{factura_id}.pdf")
 
-    iva = subtotal * 0.19
-    total = subtotal + iva
+        doc = SimpleDocTemplate(archivo)
+        estilos = getSampleStyleSheet()
+        contenido = []
 
-    contenido.append(Spacer(1, 10))
-    contenido.append(Paragraph(f"Subtotal: {subtotal}", estilos['Normal']))
-    contenido.append(Paragraph(f"IVA: {iva}", estilos['Normal']))
-    contenido.append(Paragraph(f"Total: {total}", estilos['Normal']))
+        contenido.append(Paragraph("FACTURA", estilos['Title']))
+        contenido.append(Spacer(1, 10))
+        contenido.append(Paragraph(f"Cliente: {cliente}", estilos['Normal']))
+        contenido.append(Paragraph(f"Fecha: {fecha_actual}", estilos['Normal']))
+        contenido.append(Spacer(1, 10))
 
-    doc.build(contenido)
+        subtotal = 0
 
-    return archivo
+        for p in productos:
+            linea = f"{p['nombre']} - {p['cantidad']} x {p['precio']}"
+            contenido.append(Paragraph(linea, estilos['Normal']))
+            subtotal += p['cantidad'] * p['precio']
 
+        iva = subtotal * 0.19
+        total = subtotal + iva
+
+        contenido.append(Spacer(1, 10))
+        contenido.append(Paragraph(f"Subtotal: {subtotal}", estilos['Normal']))
+        contenido.append(Paragraph(f"IVA: {iva}", estilos['Normal']))
+        contenido.append(Paragraph(f"Total: {total}", estilos['Normal']))
+
+        doc.build(contenido)
+
+        return archivo
+
+generador_pdf = GeneradorPDF()
+
+def generar_pdf_evento(datos):
+    archivo = generador_pdf.generar(datos["cliente"], datos["productos"])
+    os.startfile(archivo)
+
+event_bus.suscribir("factura_creada", generar_pdf_evento)
 
 def crear_factura():
     ventana = tk.Toplevel()
@@ -120,12 +149,13 @@ def crear_factura():
             messagebox.showerror("Error", "Agregue productos")
             return
 
-        archivo = generar_pdf(cliente, productos)
+        # 📡 PUBLICA EVENTO (NO LLAMA DIRECTO AL PDF)
+        event_bus.publicar("factura_creada", {
+            "cliente": cliente,
+            "productos": productos
+        })
 
         messagebox.showinfo("Éxito", "Factura generada")
-
-        os.startfile(archivo)
-
         ventana.destroy()
 
     tk.Button(ventana, text="Agregar Producto", command=agregar_producto)\
@@ -133,8 +163,6 @@ def crear_factura():
 
     tk.Button(ventana, text="Generar Factura", command=generar)\
         .grid(row=6, column=0, columnspan=2)
-
-
 
 app = tk.Tk()
 app.title("Sistema de Facturación")
