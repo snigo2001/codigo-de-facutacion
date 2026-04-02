@@ -1,0 +1,80 @@
+class Producto:
+    def __init__(self, nombre, precio, cantidad):
+        self.nombre = nombre
+        self.precio = precio
+        self.cantidad = cantidad
+
+    def subtotal(self):
+        return self.precio * self.cantidad
+
+
+class Factura:
+    def __init__(self, cliente):
+        self.cliente = cliente
+        self.productos = []
+        self.iva = 0.19  # 19% Colombia
+
+    def agregar_producto(self, producto):
+        self.productos.append(producto)
+
+    def calcular_subtotal(self):
+        return sum(p.subtotal() for p in self.productos)
+
+    def calcular_iva(self):
+        return self.calcular_subtotal() * self.iva
+
+    def calcular_total(self):
+        return self.calcular_subtotal() + self.calcular_iva()
+
+    def mostrar_factura(self):
+        print("\n===== FACTURA =====")
+        print(f"Cliente: {self.cliente}")
+        print("-------------------")
+
+        for p in self.productos:
+            print(f"{p.nombre} - {p.cantidad} x ${p.precio} = ${p.subtotal()}")
+
+        print("-------------------")
+        print(f"Subtotal: ${self.calcular_subtotal():.2f}")
+        print(f"IVA (19%): ${self.calcular_iva():.2f}")
+        print(f"TOTAL: ${self.calcular_total():.2f}")
+        print("===================")
+
+
+class SistemaFacturacion:
+    def __init__(self):
+        self.facturas = []
+
+    def crear_factura(self):
+        cliente = input("Nombre del cliente: ")
+        factura = Factura(cliente)
+
+        while True:
+            nombre = input("Producto: ")
+            precio = float(input("Precio: "))
+            cantidad = int(input("Cantidad: "))
+
+            producto = Producto(nombre, precio, cantidad)
+            factura.agregar_producto(producto)
+
+            continuar = input("¿Agregar otro producto? (s/n): ")
+            if continuar.lower() != 's':
+                break
+
+        factura.mostrar_factura()
+        self.facturas.append(factura)
+
+
+
+sistema = SistemaFacturacion()
+
+while True:
+    print("\n1. Nueva factura")
+    print("2. Salir")
+
+    opcion = input("Seleccione: ")
+
+    if opcion == "1":
+        sistema.crear_factura()
+    elif opcion == "2":
+        break
